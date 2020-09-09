@@ -1,0 +1,14 @@
+[package]
+name = "cpx"
+version = "0.1.0"
+authors = ["石博文 <sbw@sbw.so>"]
+edition = "2018"
+
+[profile.release]
+lto = true
+
+[dependencies]
+dirs = "*"
+clap = "*"
+serde = { version = "*", features = ["derive"] }
+serde_yaml = "*"

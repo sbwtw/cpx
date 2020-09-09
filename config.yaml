@@ -1,32 +1,25 @@
 ---
 path_list:
-  svn:
-    path: "D:\\node-exclude\\Projects\\IEC\\01_开发库\\02_IDE\\03_Setup\\Bin"
-  release:
-    path: "D:\\Program Files (x86)\\AutoEngine\\Bin"
+  src:
+    path: "D:\\src_path"
+  dst:
+    path: "D:\\dst_path"
 
 tag_list:
   core:
     file_list: ["core"]
   interface:
-    file_list: ["core"]
-  compiler:
-    file_list: ["lmm", "compiler"]
-  compiler_deploy:
-    script_list: ["lmm_deploy", "compiler_deploy"]
+    file_list: ["interface"]
+  core_deploy:
+    script_list: ["core_deploy"]
 
 file_list:
   core:
-    relative_path: "Common\\Core.dll"
-  lmm:
-    relative_path: "PlugIns\\f3f061cc-e15b-46ac-a3d0-810b5067d3ac\\3.5.11.20\\LanguageModelManager.dll"
-  compiler:
-    relative_path: "PlugIns\\c60f62be-f761-46e6-b040-7ff49d8ec1e7\\1.0.0.0\\Compiler.dll"
+    relative_path: "Bin\\Core.dll"
+  interface:
+    relative_path: "Bin\\Interface.dll"
 
 script_list:
-  lmm_deploy:
-    from: "D:\\node-exclude\\Projects\\IEC\\01_开发库\\02_IDE\\03_Setup\\Bin\\Common\\LanguageModelManager.dll"
-    to: "D:\\node-exclude\\Projects\\IEC\\01_开发库\\02_IDE\\03_Setup\\Bin\\PlugIns\\f3f061cc-e15b-46ac-a3d0-810b5067d3ac\\3.5.11.20\\LanguageModelManager.dll"
-  compiler_deploy:
-    from: "D:\\node-exclude\\Projects\\IEC\\01_开发库\\02_IDE\\03_Setup\\Bin\\Common\\Compiler.dll"
-    to: "D:\\node-exclude\\Projects\\IEC\\01_开发库\\02_IDE\\03_Setup\\Bin\\PlugIns\\c60f62be-f761-46e6-b040-7ff49d8ec1e7\\1.0.0.0\\Compiler.dll"
+  core_deploy:
+    from: "D:\\src.dll"
+    to: "D:\\dst.dll"

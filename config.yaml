@@ -6,6 +6,8 @@ path_list:
     path: "D:\\Program Files (x86)\\AutoEngine\\Bin"
 
 tag_list:
+  core:
+    file_list: ["core"]
   interface:
     file_list: ["core"]
   compiler:

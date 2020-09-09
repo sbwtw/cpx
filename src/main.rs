@@ -17,24 +17,26 @@ impl Cpx {
         }
     }
 
-    fn execute<T: AsRef<str>>(&self, from: T, to: T, tags: Option<Vec<T>>, files: Option<Vec<T>>) {
+    fn execute<T: AsRef<str>>(&self, tags: Option<Vec<T>>, files: Option<Vec<T>>) {
         let copy_files = self.file_config.calculate_file_list(tags, files);
 
-        let from = self
-            .file_config
-            .path_list
-            .get(from.as_ref())
-            .expect("path not found in config")
-            .path
-            .clone();
-        let to = self
-            .file_config
-            .path_list
-            .get(to.as_ref())
-            .expect("path not found in config")
-            .path
-            .clone();
+        let from = self.src_path().expect("src path not found");
+        let to = self.dst_path().expect("dst path not found");
         self.execute_copy(from, to, copy_files);
+    }
+
+    fn src_path(&self) -> Option<PathBuf> {
+        self.copy_config
+            .from
+            .as_ref()
+            .and_then(|x| self.file_config.path_list.get(x).map(|x| x.path.clone()))
+    }
+
+    fn dst_path(&self) -> Option<PathBuf> {
+        self.copy_config
+            .to
+            .as_ref()
+            .and_then(|x| self.file_config.path_list.get(x).map(|x| x.path.clone()))
     }
 
     fn execute_copy<P: AsRef<Path>>(&self, from: P, to: P, files: HashSet<FileInfo>) {
@@ -61,11 +63,11 @@ impl Cpx {
 }
 
 struct CopyConfig {
-    pub from: Option<PathBuf>,
-    pub to: Option<PathBuf>,
+    pub from: Option<String>,
+    pub to: Option<String>,
     pub dry_run: bool,
     pub create_dir: bool,
-    pub verbose: u32,
+    pub verbose: u64,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -165,6 +167,7 @@ fn main() {
                 .required_unless("files")
                 .multiple(true),
         )
+        .arg(Arg::with_name("verbose").short("v"))
         .arg(
             Arg::with_name("config")
                 .short("c")
@@ -174,31 +177,30 @@ fn main() {
         .arg(Arg::with_name("dry-run").long("dry-run").help("Dry run"))
         .get_matches();
 
-    let spec: Vec<_> = m
-        .value_of("spec")
-        .map(|x| x.split(':').collect())
-        .expect("spec error");
     let tags: Option<Vec<_>> = m.values_of("tags").map(|x| x.collect());
     let files: Option<Vec<_>> = m.values_of("files").map(|x| x.collect());
     let f = File::open(m.value_of("config").unwrap()).expect("File read failed!");
     let config: ConfigInfo = serde_yaml::from_reader(f).expect("File parse failed!");
 
-    if spec.len() != 2 {
-        panic!("spec must be 2");
+    let mut cpx_config = CopyConfig {
+        from: None,
+        to: None,
+        dry_run: m.is_present("dry-run"),
+        create_dir: true,
+        verbose: m.occurrences_of("verbose"),
+    };
+
+    let spec: Vec<_> = m
+        .value_of("spec")
+        .map(|x| x.split(':').collect())
+        .expect("spec error");
+    if spec.len() == 2 {
+        cpx_config.from = Some(spec[0].to_owned());
+        cpx_config.to = Some(spec[1].to_owned());
     }
 
-    let cpx = Cpx::new(
-        CopyConfig {
-            from: None,
-            to: None,
-            dry_run: m.is_present("dry-run"),
-            create_dir: true,
-            verbose: 0,
-        },
-        config,
-    );
-
-    cpx.execute(spec[0], spec[1], tags, files);
+    let cpx = Cpx::new(cpx_config, config);
+    cpx.execute(tags, files);
 
     // let mut config = ConfigInfo {
     //     path_list: HashMap::new(),

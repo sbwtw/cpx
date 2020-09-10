@@ -18,11 +18,21 @@ impl Cpx {
     }
 
     fn execute<T: AsRef<str>>(&self, tags: Option<Vec<T>>, files: Option<Vec<T>>) {
-        let copy_files = self.file_config.calculate_file_list(tags, files);
+        let copy_files = self.file_config.calculate_file_list(&tags, &files);
 
-        let from = self.src_path().expect("src path not found");
-        let to = self.dst_path().expect("dst path not found");
-        self.execute_copy(from, to, copy_files);
+        if !copy_files.is_empty() {
+            let from = self.src_path().expect("src path not found");
+            let to = self.dst_path().expect("dst path not found");
+
+            for f in copy_files {
+                let src = from.join(&f.relative_path);
+                let dst = to.join(f.relative_path);
+
+                self.execute_copy(src, dst);
+            }
+        }
+
+        self.execute_copy_script(&tags);
     }
 
     fn src_path(&self) -> Option<PathBuf> {
@@ -39,24 +49,31 @@ impl Cpx {
             .and_then(|x| self.file_config.path_list.get(x).map(|x| x.path.clone()))
     }
 
-    fn execute_copy<P: AsRef<Path>>(&self, from: P, to: P, files: HashSet<FileInfo>) {
-        for f in files {
-            let src = from.as_ref().join(&f.relative_path);
-            let dst = to.as_ref().join(f.relative_path);
+    fn execute_copy_script<T: AsRef<str>>(&self, tags: &Option<Vec<T>>) {
+        let scripts = self.file_config.calculate_script_list(tags);
 
-            if self.copy_config.verbose > 0 || self.copy_config.dry_run {
-                println!("Copy:\n{}\nto:\n{}", src.display(), dst.display());
-            }
+        for s in scripts {
+            self.execute_copy(s.from, s.to);
+        }
+    }
 
-            if !self.copy_config.dry_run {
-                if let Err(e) = std::fs::copy(&src, &dst) {
-                    eprintln!(
-                        "Copy:\n{}\nto:\n{}\nfailed, {:?}",
-                        src.display(),
-                        dst.display(),
-                        e
-                    );
-                }
+    fn execute_copy<P: AsRef<Path>>(&self, src: P, dst: P) {
+        if self.copy_config.verbose > 0 || self.copy_config.dry_run {
+            println!(
+                "Copy:\n{}\nto:\n{}",
+                src.as_ref().display(),
+                dst.as_ref().display()
+            );
+        }
+
+        if !self.copy_config.dry_run {
+            if let Err(e) = std::fs::copy(&src, &dst) {
+                eprintln!(
+                    "Copy:\n{}\nto:\n{}\nfailed, {:?}",
+                    src.as_ref().display(),
+                    dst.as_ref().display(),
+                    e
+                );
             }
         }
     }
@@ -86,7 +103,7 @@ struct FileInfo {
     relative_path: PathBuf,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 struct ScriptInfo {
     from: PathBuf,
     to: PathBuf,
@@ -101,10 +118,24 @@ struct ConfigInfo {
 }
 
 impl ConfigInfo {
+    fn calculate_script_list<T: AsRef<str>>(&self, tags: &Option<Vec<T>>) -> HashSet<ScriptInfo> {
+        let mut selected_scripts = HashSet::new();
+
+        if let Some(x) = tags {
+            for t in x {
+                if let Some(item) = self.script_list.get(t.as_ref()) {
+                    selected_scripts.insert(item.clone());
+                }
+            }
+        }
+
+        selected_scripts
+    }
+
     fn calculate_file_list<T: AsRef<str>>(
         &self,
-        tags: Option<Vec<T>>,
-        files: Option<Vec<T>>,
+        tags: &Option<Vec<T>>,
+        files: &Option<Vec<T>>,
     ) -> HashSet<FileInfo> {
         let mut selected_files: Vec<_> = vec![];
         if let Some(x) = tags {
@@ -149,7 +180,6 @@ fn main() {
             Arg::with_name("spec")
                 .help("specific source path and destination path")
                 .takes_value(true)
-                .required(true)
                 .index(1),
         )
         .arg(
@@ -190,13 +220,11 @@ fn main() {
         verbose: m.occurrences_of("verbose"),
     };
 
-    let spec: Vec<_> = m
-        .value_of("spec")
-        .map(|x| x.split(':').collect())
-        .expect("spec error");
-    if spec.len() == 2 {
-        cpx_config.from = Some(spec[0].to_owned());
-        cpx_config.to = Some(spec[1].to_owned());
+    if let Some(spec) = m.value_of("spec").map(|x| x.split(':').collect::<Vec<_>>()) {
+        if spec.len() == 2 {
+            cpx_config.from = Some(spec[0].to_owned());
+            cpx_config.to = Some(spec[1].to_owned());
+        }
     }
 
     let cpx = Cpx::new(cpx_config, config);
